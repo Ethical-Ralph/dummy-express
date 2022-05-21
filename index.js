@@ -10,9 +10,16 @@ app.get("/home", (req, res) => {
   res.send("home");
 });
 
-app.get("/json", (req, res) => {
+// const authMiddleware = (req, res, next) => {
+//   if (!req.user) {
+//     return res.end("No user authenicated");
+//   }
+//   next();
+// };
+
+app.post("/json", (req, res) => {
   res.json({
-    message: "JSON DATA",
+    message: req.body,
   });
 });
 

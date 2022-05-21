@@ -1,10 +1,15 @@
 const http = require("http");
 
-const handlers = {
-  "/": {
-    GET: (req, res) => res.end("Dummy home"),
-    POST: (req, res) => res.end("Dummy home post"),
-  },
+const parser = (req, cb) => {
+  let body = "";
+
+  req.on("data", (chunk) => {
+    body += Buffer.from(chunk).toString();
+  });
+
+  req.on("end", () => {
+    cb(JSON.parse(body));
+  });
 };
 
 const response = (res) => ({
@@ -20,18 +25,24 @@ const response = (res) => ({
 });
 
 // dummy express module
+const handlers = {
+  "/": {
+    GET: (req, res) => res.end("Dummy home"),
+    POST: (req, res) => res.end("Dummy home post"),
+  },
+};
+
 module.exports = () => {
   const server = http.createServer((req, res) => {
     const handlerMethods = handlers[req.url];
 
     let handler;
-
     if (handlerMethods) {
       handler = handlerMethods[req.method.toUpperCase()];
     }
 
     if (handler) {
-      handler(req, response(res));
+      parser(req, (body) => handler({ body, ...req }, response(res)));
       return;
     }
 
@@ -49,6 +60,20 @@ module.exports = () => {
 
       handlers[routePath] = {};
       handlers[routePath]["GET"] = handler;
+
+      return;
+    },
+
+    post: (routePath, handler) => {
+      const handleExist = handlers[routePath];
+
+      if (handleExist) {
+        handlers[routePath]["POST"] = handler;
+        return;
+      }
+
+      handlers[routePath] = {};
+      handlers[routePath]["POST"] = handler;
 
       return;
     },
