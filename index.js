@@ -10,18 +10,37 @@ app.get("/home", (req, res) => {
   res.send("home");
 });
 
-// const authMiddleware = (req, res, next) => {
-//   if (!req.user) {
-//     return res.end("No user authenicated");
-//   }
-//   next();
-// };
+const authMiddleware = (req, res, next) => {
+  console.log("from auth middleware");
+  next();
+};
 
-app.post("/json", (req, res) => {
+const dummyMiddleware = (req, res, next) => {
+  console.log("from dummyMiddleware ");
+  next();
+};
+
+const loggerMiddleware = (req, res, next) => {
+  console.log("from loggerMiddleware");
+  req.log = {
+    massage: "Logger",
+  };
+  next();
+};
+
+const mainHandler = (req, res, next) => {
   res.json({
     message: req.body,
   });
-});
+};
+
+app.get(
+  "/json",
+  authMiddleware,
+  dummyMiddleware,
+  loggerMiddleware,
+  mainHandler
+);
 
 app.listen(9000, () => {
   console.log("app listening on: ", 9000);

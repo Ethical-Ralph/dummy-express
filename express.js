@@ -8,7 +8,11 @@ const parser = (req, cb) => {
   });
 
   req.on("end", () => {
-    cb(JSON.parse(body));
+    if (req.method != "GET") {
+      cb(JSON.parse(body));
+    } else {
+      cb(body);
+    }
   });
 };
 
@@ -27,8 +31,8 @@ const response = (res) => ({
 // dummy express module
 const handlers = {
   "/": {
-    GET: (req, res) => res.end("Dummy home"),
-    POST: (req, res) => res.end("Dummy home post"),
+    GET: [(req, res) => res.end("Dummy home")],
+    POST: [(req, res) => res.end("Dummy home post")],
   },
 };
 
@@ -36,13 +40,29 @@ module.exports = () => {
   const server = http.createServer((req, res) => {
     const handlerMethods = handlers[req.url];
 
-    let handler;
+    let pathHandlers;
+
     if (handlerMethods) {
-      handler = handlerMethods[req.method.toUpperCase()];
+      pathHandlers = handlerMethods[req.method.toUpperCase()];
     }
 
+    const handler = pathHandlers ? pathHandlers.shift() : null;
+
     if (handler) {
-      parser(req, (body) => handler({ body, ...req }, response(res)));
+      parser(req, (body) => {
+        const _req = { body, ...req };
+        const _res = response(res);
+
+        const next = () => {
+          if (pathHandlers.length > 0) {
+            const nextHandler = pathHandlers.shift();
+            nextHandler(_req, _res, next);
+          }
+        };
+
+        // authMiddleware
+        handler(_req, res, next);
+      });
       return;
     }
 
@@ -50,30 +70,30 @@ module.exports = () => {
   });
 
   return {
-    get: (routePath, handler) => {
+    get: (routePath, ...pathHandlers) => {
       const handleExist = handlers[routePath];
 
       if (handleExist) {
-        handlers[routePath]["GET"] = handler;
+        handlers[routePath]["GET"] = pathHandlers;
         return;
       }
 
       handlers[routePath] = {};
-      handlers[routePath]["GET"] = handler;
+      handlers[routePath]["GET"] = pathHandlers;
 
       return;
     },
 
-    post: (routePath, handler) => {
+    post: (routePath, ...pathHandlers) => {
       const handleExist = handlers[routePath];
 
       if (handleExist) {
-        handlers[routePath]["POST"] = handler;
+        handlers[routePath]["POST"] = pathHandlers;
         return;
       }
 
       handlers[routePath] = {};
-      handlers[routePath]["POST"] = handler;
+      handlers[routePath]["POST"] = pathHandlers;
 
       return;
     },
